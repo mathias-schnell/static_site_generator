@@ -24,11 +24,18 @@ class LeafNode(HTMLNode):
 
 
 	def to_html(self):
-		if self.value is None:
-			raise ValueError("LeafNode must have a value.")
+		if self.value is None and self.tag != "img":
+			raise ValueError("LeafNode must have a value unless it is an <img> tag.")
 
 		if self.tag is None:
 			return self.value
 
 		prop_str = self.props_to_html()
+
+		# HTML void elements that should not have closing tags
+		void_tags = {"img", "br", "hr", "input", "meta", "link"}
+
+		if self.tag in void_tags:
+			return f"<{self.tag}{prop_str}>"
+
 		return f"<{self.tag}{prop_str}>{self.value}</{self.tag}>"
