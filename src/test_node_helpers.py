@@ -1,6 +1,8 @@
 import unittest
 from node_helpers import text_node_to_html_node
 from node_helpers import split_nodes_delimiter
+from node_helpers import extract_markdown_images
+from node_helpers import extract_markdown_links
 from textnode import TextNode, TextType
 from leafnode import LeafNode
 
@@ -141,6 +143,61 @@ class TestSplitNodesDelimiter(unittest.TestCase):
         self.assertEqual(result[0].text_type, TextType.CODE)
         self.assertEqual(result[1].text, "two")
         self.assertEqual(result[1].text_type, TextType.CODE)
+
+class TestMarkdownExtraction(unittest.TestCase):
+    def test_single_image(self):
+        text = "Here is an image ![alt text](https://example.com/img.png)"
+        result = extract_markdown_images(text)
+        expected = [("alt text", "https://example.com/img.png")]
+        self.assertEqual(result, expected)
+
+    def test_multiple_images(self):
+        text = "Images: ![one](url1) and ![two](url2)"
+        result = extract_markdown_images(text)
+        expected = [("one", "url1"), ("two", "url2")]
+        self.assertEqual(result, expected)
+
+    def test_no_images(self):
+        text = "No images here."
+        result = extract_markdown_images(text)
+        expected = []
+        self.assertEqual(result, expected)
+
+    def test_image_with_special_chars(self):
+        text = "Check this ![alt-text](https://example.com/path/to-image.png)"
+        result = extract_markdown_images(text)
+        expected = [("alt-text", "https://example.com/path/to-image.png")]
+        self.assertEqual(result, expected)
+
+    def test_single_link(self):
+        text = "Click [here](https://example.com)"
+        result = extract_markdown_links(text)
+        expected = [("here", "https://example.com")]
+        self.assertEqual(result, expected)
+
+    def test_multiple_links(self):
+        text = "Links: [one](url1) and [two](url2)"
+        result = extract_markdown_links(text)
+        expected = [("one", "url1"), ("two", "url2")]
+        self.assertEqual(result, expected)
+
+    def test_no_links(self):
+        text = "No links in this text."
+        result = extract_markdown_links(text)
+        expected = []
+        self.assertEqual(result, expected)
+
+    def test_links_ignore_images(self):
+        text = "An image ![img](url1) and a link [link](url2)"
+        result = extract_markdown_links(text)
+        expected = [("link", "url2")]
+        self.assertEqual(result, expected)
+
+    def test_link_with_special_chars(self):
+        text = "Check [my-link](https://example.com/path?query=1&test=2)"
+        result = extract_markdown_links(text)
+        expected = [("my-link", "https://example.com/path?query=1&test=2")]
+        self.assertEqual(result, expected)
 
 if __name__ == "__main__":
     unittest.main()
