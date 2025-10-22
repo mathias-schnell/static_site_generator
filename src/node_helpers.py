@@ -57,3 +57,76 @@ def extract_markdown_images(text):
 
 def extract_markdown_links(text):
     return re.findall(r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)", text)
+
+def split_nodes_image(old_nodes):
+    new_nodes = []
+
+    for node in old_nodes:
+        if node.text_type != TextType.TEXT:
+            new_nodes.append(node)
+            continue
+        
+        text = node.text
+        text_start = 0
+
+        for match in extract_markdown_images(text):
+            match_text = f"![{match[0]}]({match[1]})"
+            split_start = text.find(match_text, text_start)
+            split_end = split_start + len(match_text)
+
+            if split_start == -1:
+                if text_start < len(text):
+                    new_nodes.append(TextNode(text[text_start:], TextType.TEXT))
+                break
+
+            if split_start > text_start:
+                new_nodes.append(TextNode(text[text_start:split_start], TextType.TEXT))
+            
+            new_nodes.append(TextNode(match[0], TextType.IMAGE, match[1]))
+            text_start = split_end
+
+        if text_start < len(text):
+            new_nodes.append(TextNode(text[text_start:], TextType.TEXT))
+
+    return new_nodes
+
+def split_nodes_link(old_nodes):
+    new_nodes = []
+
+    for node in old_nodes:
+        if node.text_type != TextType.TEXT:
+            new_nodes.append(node)
+            continue
+        
+        text = node.text
+        text_start = 0
+
+        for match in extract_markdown_links(text):
+            match_text = f"[{match[0]}]({match[1]})"
+            split_start = text.find(match_text, text_start)
+            split_end = split_start + len(match_text)
+
+            if split_start == -1:
+                if text_start < len(text):
+                    new_nodes.append(TextNode(text[text_start:], TextType.TEXT))
+                break
+
+            if split_start > text_start:
+                new_nodes.append(TextNode(text[text_start:split_start], TextType.TEXT))
+            
+            new_nodes.append(TextNode(match[0], TextType.LINK, match[1]))
+            text_start = split_end
+
+        if text_start < len(text):
+            new_nodes.append(TextNode(text[text_start:], TextType.TEXT))
+
+    return new_nodes
+
+def text_to_textnodes(text):
+    nodes = [TextNode(text, TextType.TEXT)]
+    nodes = split_nodes_delimiter(nodes, "**", TextType.BOLD)
+    nodes = split_nodes_delimiter(nodes, "_", TextType.ITALIC)
+    nodes = split_nodes_delimiter(nodes, "`", TextType.CODE)
+    nodes = split_nodes_image(nodes)
+    nodes = split_nodes_link(nodes)
+    return nodes

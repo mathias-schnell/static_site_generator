@@ -3,6 +3,9 @@ from node_helpers import text_node_to_html_node
 from node_helpers import split_nodes_delimiter
 from node_helpers import extract_markdown_images
 from node_helpers import extract_markdown_links
+from node_helpers import split_nodes_image
+from node_helpers import split_nodes_link
+from node_helpers import text_to_textnodes
 from textnode import TextNode, TextType
 from leafnode import LeafNode
 
@@ -198,6 +201,111 @@ class TestMarkdownExtraction(unittest.TestCase):
         result = extract_markdown_links(text)
         expected = [("my-link", "https://example.com/path?query=1&test=2")]
         self.assertEqual(result, expected)
+
+class TestSplitNodesImage(unittest.TestCase):
+    def test_single_image(self):
+        nodes = [TextNode("Hello ![alt](url.png) world", TextType.TEXT)]
+        result = split_nodes_image(nodes)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[1], TextNode("alt", TextType.IMAGE, "url.png"))
+
+    def test_multiple_images(self):
+        nodes = [TextNode("![a](1.png) middle ![b](2.png)", TextType.TEXT)]
+        result = split_nodes_image(nodes)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0].text, "a")
+        self.assertEqual(result[0].url, "1.png")
+        self.assertEqual(result[1].text, " middle ")
+        self.assertEqual(result[2].text, "b")
+        self.assertEqual(result[2].url, "2.png")
+
+    def test_adjacent_images(self):
+        nodes = [TextNode("![x](1.png)![y](2.png)", TextType.TEXT)]
+        result = split_nodes_image(nodes)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].text, "x")
+        self.assertEqual(result[0].url, "1.png")
+        self.assertEqual(result[1].text, "y")
+        self.assertEqual(result[1].url, "2.png")
+
+    def test_no_images(self):
+        nodes = [TextNode("Just text", TextType.TEXT)]
+        result = split_nodes_image(nodes)
+        self.assertEqual(result[0].text, "Just text")
+    
+    def test_ignores_non_text_nodes(self):
+        nodes = [TextNode("![alt](url.png)", TextType.IMAGE)]
+        result = split_nodes_image(nodes)
+        self.assertEqual(result, nodes)
+
+
+
+class TestSplitNodesLink(unittest.TestCase):
+    def test_single_link(self):
+        nodes = [TextNode("Click [here](https://example.com)", TextType.TEXT)]
+        result = split_nodes_link(nodes)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[1].text_type, TextType.LINK)
+        self.assertEqual(result[1].text, "here")
+        self.assertEqual(result[1].url, "https://example.com")
+
+    def test_multiple_links(self):
+        nodes = [TextNode("[a](1.com) middle [b](2.com)", TextType.TEXT)]
+        result = split_nodes_link(nodes)
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0].text, "a")
+        self.assertEqual(result[0].url, "1.com")
+        self.assertEqual(result[1].text, " middle ")
+        self.assertEqual(result[2].text, "b")
+        self.assertEqual(result[2].url, "2.com")
+
+    def test_adjacent_links(self):
+        nodes = [TextNode("[x](1.com)[y](2.com)", TextType.TEXT)]
+        result = split_nodes_link(nodes)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].text, "x")
+        self.assertEqual(result[0].url, "1.com")
+        self.assertEqual(result[1].text, "y")
+        self.assertEqual(result[1].url, "2.com")
+
+    def test_no_links(self):
+        nodes = [TextNode("Just text", TextType.TEXT)]
+        result = split_nodes_link(nodes)
+        self.assertEqual(result[0].text, "Just text")
+
+    def test_ignores_non_text_nodes(self):
+        nodes = [TextNode("[a](1.com)", TextType.LINK, "1.com")]
+        result = split_nodes_link(nodes)
+        self.assertEqual(result, nodes)
+
+class TestTextToTextNodes(unittest.TestCase):
+    def test_sample_line(self):
+        sample_text = (
+            "This is **text** with an _italic_ word and a `code block` "
+            "and an ![obi wan image](https://i.imgur.com/fJRm4Vk.jpeg) "
+            "and a [link](https://boot.dev)"
+        )
+        result = text_to_textnodes(sample_text)
+
+        expected_nodes = [
+            TextNode("This is ", TextType.TEXT),
+            TextNode("text", TextType.BOLD),
+            TextNode(" with an ", TextType.TEXT),
+            TextNode("italic", TextType.ITALIC),
+            TextNode(" word and a ", TextType.TEXT),
+            TextNode("code block", TextType.CODE),
+            TextNode(" and an ", TextType.TEXT),
+            TextNode("obi wan image", TextType.IMAGE, "https://i.imgur.com/fJRm4Vk.jpeg"),
+            TextNode(" and a ", TextType.TEXT),
+            TextNode("link", TextType.LINK, "https://boot.dev"),
+        ]
+
+        self.assertEqual(len(result), len(expected_nodes))
+
+        for r_node, e_node in zip(result, expected_nodes):
+            self.assertEqual(r_node.text_type, e_node.text_type)
+            self.assertEqual(r_node.text, e_node.text)
+            self.assertEqual(r_node.url, getattr(e_node, "url", None))
 
 if __name__ == "__main__":
     unittest.main()
