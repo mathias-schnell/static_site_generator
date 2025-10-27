@@ -6,8 +6,11 @@ from node_helpers import extract_markdown_links
 from node_helpers import split_nodes_image
 from node_helpers import split_nodes_link
 from node_helpers import text_to_textnodes
+from node_helpers import markdown_to_blocks
+from node_helpers import block_to_block_type
 from textnode import TextNode, TextType
 from leafnode import LeafNode
+from blocktype import BlockType
 
 
 class TestTextNodeToHTMLNode(unittest.TestCase):
@@ -306,6 +309,86 @@ class TestTextToTextNodes(unittest.TestCase):
             self.assertEqual(r_node.text_type, e_node.text_type)
             self.assertEqual(r_node.text, e_node.text)
             self.assertEqual(r_node.url, getattr(e_node, "url", None))
+
+class TestMarkdownToBlocks(unittest.TestCase):
+    def test_single_block(self):
+        text = "This is a single paragraph."
+        expected = ["This is a single paragraph."]
+        self.assertEqual(markdown_to_blocks(text), expected)
+
+    def test_multiple_blocks(self):
+        text = "Paragraph one.\n\nParagraph two.\n\nParagraph three."
+        expected = ["Paragraph one.", "Paragraph two.", "Paragraph three."]
+        self.assertEqual(markdown_to_blocks(text), expected)
+
+    def test_blocks_with_extra_whitespace(self):
+        text = "  First block.  \n\n   Second block.\n\nThird block.   "
+        expected = ["First block.", "Second block.", "Third block."]
+        self.assertEqual(markdown_to_blocks(text), expected)
+
+    def test_leading_and_trailing_newlines(self):
+        text = "\n\n# Heading\n\nSome text.\n\n"
+        expected = ["# Heading", "Some text."]
+        self.assertEqual(markdown_to_blocks(text), expected)
+
+    def test_empty_string(self):
+        text = ""
+        expected = []
+        self.assertEqual(markdown_to_blocks(text), expected)
+
+    def test_multiple_blank_blocks(self):
+        text = "Block one.\n\n\n\nBlock two."
+        expected = ["Block one.", "Block two."]
+        self.assertEqual(markdown_to_blocks(text), expected)
+
+class TestBlockToBlockType(unittest.TestCase):
+
+    def test_heading_block(self):
+        text = "# This is a heading"
+        self.assertEqual(block_to_block_type(text), BlockType.HEADING)
+
+    def test_multilevel_heading(self):
+        text = "###### Level 6 heading"
+        self.assertEqual(block_to_block_type(text), BlockType.HEADING)
+
+    def test_code_block(self):
+        text = "```\nprint('Hello, world!')\n```"
+        self.assertEqual(block_to_block_type(text), BlockType.CODE)
+
+    def test_inline_code_not_block(self):
+        # Should count as paragraph, not code block
+        text = "This is a paragraph with `inline code`."
+        self.assertEqual(block_to_block_type(text), BlockType.PARAGRAPH)
+
+    def test_blockquote(self):
+        text = "> This is a quote\n> Continued quote line"
+        self.assertEqual(block_to_block_type(text), BlockType.QUOTE)
+
+    def test_unordered_list_dash(self):
+        text = "- Item one\n- Item two\n- Item three"
+        self.assertEqual(block_to_block_type(text), BlockType.UL)
+
+    def test_ordered_list(self):
+        text = "1. First\n2. Second\n3. Third"
+        self.assertEqual(block_to_block_type(text), BlockType.OL)
+
+    def test_malformed_ordered_list(self):
+        text = "1. First\n3. Second"
+        # Should not count as ordered list (numbers out of sequence)
+        self.assertEqual(block_to_block_type(text), BlockType.PARAGRAPH)
+
+    def test_paragraph(self):
+        text = "This is just a normal paragraph of text."
+        self.assertEqual(block_to_block_type(text), BlockType.PARAGRAPH)
+
+    def test_mixed_list_and_paragraph(self):
+        text = "- List item\n\nSome text after list"
+        # Not a single block; if passed as one string, treat as paragraph
+        self.assertEqual(block_to_block_type(text), BlockType.PARAGRAPH)
+
+    def test_empty_block(self):
+        text = ""
+        self.assertEqual(block_to_block_type(text), BlockType.PARAGRAPH)
 
 if __name__ == "__main__":
     unittest.main()

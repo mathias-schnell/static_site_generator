@@ -2,6 +2,7 @@ import re
 from leafnode import LeafNode
 from textnode import TextType
 from textnode import TextNode
+from blocktype import BlockType
 
 def text_node_to_html_node(text_node):
     newLeaf = LeafNode(None, text_node.text, {})
@@ -130,3 +131,38 @@ def text_to_textnodes(text):
     nodes = split_nodes_image(nodes)
     nodes = split_nodes_link(nodes)
     return nodes
+
+def markdown_to_blocks(text):
+    return [p.strip() for p in text.split("\n\n") if p.strip() != ""]
+
+def is_ordered_list_block(text):
+    lines = [line for line in text.split('\n') if line.strip()]
+    pattern = re.compile(r'^(\d+)\.\s')
+
+    expected = 1
+    for line in lines:
+        match = pattern.match(line)
+        if not match or int(match.group(1)) != expected:
+            return False
+        expected += 1
+    return True
+
+def block_to_block_type(text):
+    if not text.strip():
+        return BlockType.PARAGRAPH
+    
+    lines = text.split("\n")
+    match_heading = r"^[#]{1,6}\s\S"
+
+    if text.startswith("```") and text.endswith("```"):
+        return BlockType.CODE
+    elif re.match(match_heading, text):
+        return BlockType.HEADING
+    elif all(line.startswith('>') for line in lines if line.strip()):
+        return BlockType.QUOTE
+    elif all(line.startswith('- ') for line in lines if line.strip()):
+        return BlockType.UL
+    elif is_ordered_list_block(text):
+        return BlockType.OL
+    else:
+        return BlockType.PARAGRAPH
