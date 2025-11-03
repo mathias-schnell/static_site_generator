@@ -1,5 +1,7 @@
 import re
+from htmlnode import HTMLNode
 from leafnode import LeafNode
+from parentnode import ParentNode
 from textnode import TextType
 from textnode import TextNode
 from blocktype import BlockType
@@ -166,3 +168,38 @@ def block_to_block_type(text):
         return BlockType.OL
     else:
         return BlockType.PARAGRAPH
+
+def markdown_to_html_node(text):
+    rootnode = ParentNode("div", None)
+    blocks = markdown_to_blocks(text)
+
+    for block in blocks:
+        blocktype = block_to_block_type(block)
+        child_nodes = tag = ""
+
+        match blocktype:
+            case BlockType.CODE:
+                tag = "pre"
+                child_nodes = [LeafNode("code", block[3:-3].lstrip("\n"))]
+            case BlockType.QUOTE:
+                tag = "blockquote"
+                block = " ".join(line.lstrip("> ").rstrip() for line in block.split("\n"))
+                child_nodes = [text_node_to_html_node(n) for n in text_to_textnodes(block)]
+            case BlockType.HEADING:
+                tag = "h" + str(len(re.match(r"^#+", block).group()))
+                child_nodes = [text_node_to_html_node(n) for n in text_to_textnodes(block[block.find(" ") + 1:])]
+            case BlockType.UL:
+                tag = "ul"
+                lines = (line[2:] if line.startswith("- ") else line for line in block.split("\n"))
+                child_nodes = [LeafNode("li", line) for line in lines]
+            case BlockType.OL:
+                tag = "ol"
+                lines = (line[line.find(" ") + 1:] if re.match(r'^(\d+)\.\s', line) else line for line in block.split("\n"))
+                child_nodes = [LeafNode("li", line) for line in lines]
+            case BlockType.PARAGRAPH:
+                tag = "p"
+                block = " ".join(line.strip() for line in block.split("\n"))
+                child_nodes = [text_node_to_html_node(n) for n in text_to_textnodes(block)]
+        rootnode.children.append(ParentNode(tag, child_nodes))
+    
+    return rootnode

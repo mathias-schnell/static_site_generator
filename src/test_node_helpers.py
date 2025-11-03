@@ -1,4 +1,5 @@
 import unittest
+import textwrap
 from node_helpers import text_node_to_html_node
 from node_helpers import split_nodes_delimiter
 from node_helpers import extract_markdown_images
@@ -8,6 +9,7 @@ from node_helpers import split_nodes_link
 from node_helpers import text_to_textnodes
 from node_helpers import markdown_to_blocks
 from node_helpers import block_to_block_type
+from node_helpers import markdown_to_html_node
 from textnode import TextNode, TextType
 from leafnode import LeafNode
 from blocktype import BlockType
@@ -389,6 +391,99 @@ class TestBlockToBlockType(unittest.TestCase):
     def test_empty_block(self):
         text = ""
         self.assertEqual(block_to_block_type(text), BlockType.PARAGRAPH)
+
+class TestMarkdownToHTML(unittest.TestCase):
+    def test_paragraphs(self):
+        md = textwrap.dedent("""
+            This is **bolded** paragraph
+            text in a p
+            tag here
+
+            This is another paragraph with _italic_ text and `code` here
+
+        """)
+
+        node = markdown_to_html_node(md)
+        html = node.to_html()
+        self.assertEqual(
+            html,
+            "<div><p>This is <b>bolded</b> paragraph text in a p tag here</p><p>This is another paragraph with <i>italic</i> text and <code>code</code> here</p></div>",
+        )
+
+    def test_codeblock(self):
+        md = textwrap.dedent("""
+            ```
+            This is text that _should_ remain
+            the **same** even with inline stuff
+            ```
+            """)
+
+        node = markdown_to_html_node(md)
+        html = node.to_html()
+        self.assertEqual(
+            html,
+            "<div><pre><code>This is text that _should_ remain\nthe **same** even with inline stuff\n</code></pre></div>",
+        )
+
+class TestMarkdownToHTML_Extra(unittest.TestCase):
+    def test_mixed_inline_formatting(self):
+        md = "This is **bold** and _italic_ plus `code`"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><p>This is <b>bold</b> and <i>italic</i> plus <code>code</code></p></div>"
+        self.assertEqual(html, expected)
+
+    def test_paragraphs_with_blank_lines(self):
+        md = "First paragraph.\n\nSecond paragraph.\n\n\nThird paragraph."
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><p>First paragraph.</p><p>Second paragraph.</p><p>Third paragraph.</p></div>"
+        self.assertEqual(html, expected)
+
+    def test_codeblock_with_indentation(self):
+        md = "```\ndef func():\n    return 42\n```"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><pre><code>def func():\n    return 42\n</code></pre></div>"
+        self.assertEqual(html, expected)
+
+    def test_inline_code_with_backticks(self):
+        md = "Use `code` in text"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><p>Use <code>code</code> in text</p></div>"
+        self.assertEqual(html, expected)
+
+    def test_paragraph_then_codeblock(self):
+        md = "Intro text:\n\n```\nline 1\nline 2\n```"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><p>Intro text:</p><pre><code>line 1\nline 2\n</code></pre></div>"
+        self.assertEqual(html, expected)
+
+    def test_unordered_list_basic(self):
+        md = "- Item one\n- Item two\n- Item three"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><ul><li>Item one</li><li>Item two</li><li>Item three</li></ul></div>"
+        self.assertEqual(html, expected)
+
+    def test_ordered_list_basic(self):
+        md = "1. First\n2. Second\n3. Third"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><ol><li>First</li><li>Second</li><li>Third</li></ol></div>"
+        self.assertEqual(html, expected)
+
+    def test_blockquote_basic(self):
+        md = "> A wise quote\n> continues here"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><blockquote>A wise quote continues here</blockquote></div>"
+        self.assertEqual(html, expected)
+
+    def test_heading_basic(self):
+        md = "## Subheading Level 2"
+        html = markdown_to_html_node(md).to_html()
+        expected = "<div><h2>Subheading Level 2</h2></div>"
+        self.assertEqual(html, expected)
+
+    def test_empty_input_raises_for_parentnode(self):
+        md = ""
+        with self.assertRaises(ValueError):
+            markdown_to_html_node(md).to_html()
 
 if __name__ == "__main__":
     unittest.main()
