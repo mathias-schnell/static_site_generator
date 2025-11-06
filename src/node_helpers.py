@@ -191,11 +191,17 @@ def markdown_to_html_node(text):
             case BlockType.UL:
                 tag = "ul"
                 lines = (line[2:] if line.startswith("- ") else line for line in block.split("\n"))
-                child_nodes = [LeafNode("li", line) for line in lines]
+                child_nodes = [
+                    ParentNode("li", [text_node_to_html_node(n) for n in text_to_textnodes(item)])
+                    for item in lines
+                ]
             case BlockType.OL:
                 tag = "ol"
                 lines = (line[line.find(" ") + 1:] if re.match(r'^(\d+)\.\s', line) else line for line in block.split("\n"))
-                child_nodes = [LeafNode("li", line) for line in lines]
+                child_nodes = [
+                    ParentNode("li", [text_node_to_html_node(n) for n in text_to_textnodes(item)])
+                    for item in lines
+                ]
             case BlockType.PARAGRAPH:
                 tag = "p"
                 block = " ".join(line.strip() for line in block.split("\n"))
