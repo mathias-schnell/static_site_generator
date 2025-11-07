@@ -1,9 +1,11 @@
+import sys
 import os
 from main_helpers import clear_directory, copy_dir, generate_pages_recursive
 
 def main():
+    basepath = sys.argv[1] if len(sys.argv) > 1 else "/"
     content_dir = "content"
-    public_dir = "public"
+    public_dir = "docs"
     static_dir = "static"
     template_path = "template.html"
 
