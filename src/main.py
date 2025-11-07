@@ -11,6 +11,6 @@ def main():
 
     clear_directory(public_dir)
     copy_dir(static_dir, public_dir)
-    generate_pages_recursive(content_dir, template_path, public_dir)
+    generate_pages_recursive(content_dir, template_path, public_dir, basepath)
 
 main()
